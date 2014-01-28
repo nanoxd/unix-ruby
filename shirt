@@ -1,13 +1,20 @@
 #!/usr/bin/env ruby
 
-$stdout.print '-> '
+loop do
+  $stdout.print '-> '
+  line = $stdin.gets
 
-$stdin.each_line do |line|
+  if line
+    line.strip!
+  else
+    # in this case, EOF was received on $stdin
+    exit
+  end
+
   pid = fork {
     exec line
-}
+  }
 
   Process.wait pid
-  $stdout.print '-> '
 end
 
