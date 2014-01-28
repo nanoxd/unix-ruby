@@ -1,6 +1,25 @@
 #!/usr/bin/env ruby
 require 'shellwords'
 
+
+def main
+  loop do
+    $stdout.print ENV['PROMPT']
+    line = $stdin.gets.strip
+    command, *arguments = Shellwords.shellsplit(line)
+
+    if BUILTINS[command]
+      BUILTINS[command].call(*arguments)
+    else
+      pid = fork {
+        exec line
+      }
+
+      Process.wait pid
+    end
+  end
+end
+
 BUILTINS = {
   'cd' => lambda { |dir| Dir.chdir(dir) },
   'exit' => lambda { |code = 0| exit(code.to_i) },
@@ -13,28 +32,4 @@ BUILTINS = {
 
 ENV['PROMPT'] = '-> '
 
-loop do
-  $stdout.print ENV['PROMPT']
-  line = $stdin.gets
-
-  if line
-    line.strip!
-  else
-    # in this case, EOF was received on $stdin
-    exit
-  end
-
-  command, *arguments = Shellwords.shellsplit(line)
-
-  if BUILTINS[command]
-    BUILTINS[command].call(*arguments)
-  else
-    pid = fork {
-      exec line
-    }
-
-    Process.wait pid
-  end
-
-end
-
+main
