@@ -1,4 +1,7 @@
 #!/usr/bin/env ruby
+require 'shellwords'
+
+BUILTINS = { 'cd' => lambda { |dir| Dir.chdir(dir) } }
 
 loop do
   $stdout.print '-> '
@@ -11,10 +14,17 @@ loop do
     exit
   end
 
-  pid = fork {
-    exec line
-  }
+  command, *arguments = Shellwords.shellsplit(line)
 
-  Process.wait pid
+  if BUILTINS[command]
+    BUILTINS[command].call(*arguments)
+  else
+    pid = fork {
+      exec line
+    }
+
+    Process.wait pid
+  end
+
 end
 
