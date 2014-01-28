@@ -11,8 +11,10 @@ BUILTINS = {
   }
 }
 
+ENV['PROMPT'] = '-> '
+
 loop do
-  $stdout.print '-> '
+  $stdout.print ENV['PROMPT']
   line = $stdin.gets
 
   if line
