@@ -6,18 +6,58 @@ def main
   loop do
     $stdout.print ENV['PROMPT']
     line = $stdin.gets.strip
-    command, *arguments = Shellwords.shellsplit(line)
+    commands = split_on_pipes(line)
 
-    if BUILTINS[command]
-      BUILTINS[command].call(*arguments)
-    else
-      pid = fork {
-        exec command, *arguments
-      }
+    placeholder_in = $stdin
+    placeholder_out = $stdout
+    pipe = []
 
-      Process.wait pid
+    commands.each_with_index do |command, index|
+      program, *arguments = Shellwords.shellsplit(command)
+
+      if builtin?(program)
+        call_builtin(program, *arguments)
+      else
+        if index+1 < commands.size
+          pipe = IO.pipe
+          placeholder_out = pipe.last
+        else
+          placeholder_out = $stdout
+        end
+
+        spawn_program(program, *arguments, placeholder_out, placeholder_in)
+
+        placeholder_out.close unless placeholder_out == $stdout
+        placeholder_in.close unless placeholder_in == $stdin
+
+        placeholder_in = pipe.first
+      end
     end
+
+    Process.waitall
+
   end
+end
+
+def split_on_pipes(line)
+  # inspired by http://bit.ly/Lp0yfQ
+  line.scan( /([^"'|]+)|["']([^"']*)["']/ ).flatten.compact
+end
+
+def spawn_program(program, *arguments, placeholder_out, placeholder_in)
+  fork {
+    unless placeholder_out == $stdout
+      $stdout.reopen(placeholder_out)
+      placeholder_out.close
+    end
+
+    unless placeholder_in == $stdin
+      $stdin.reopen(placeholder_in)
+      placeholder_in.close
+    end
+
+    exec program, *arguments
+  }
 end
 
 BUILTINS = {
